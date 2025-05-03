@@ -15,7 +15,7 @@ st.sidebar.image("https://img.icons8.com/color/96/artificial-intelligence.png", 
 st.sidebar.title("AI Project Suite")
 page = st.sidebar.radio("Navigation", ["Audio Deepfake Detection", "Software Defect Prediction"], help="Choose a prediction tool.")
 st.sidebar.markdown("---")
-st.sidebar.info("Developed by Md. Hasnain | Data Science 2025")
+st.sidebar.info("Developed by Mohd. Hasnain with ❤️ | Data Science 2K25")
 st.sidebar.markdown("<small>Powered by Streamlit, scikit-learn, TensorFlow, and Hugging Face</small>", unsafe_allow_html=True)
 
 # --- Load models and data ---
