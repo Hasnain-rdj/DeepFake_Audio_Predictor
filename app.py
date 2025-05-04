@@ -135,35 +135,70 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 if page == "Audio Deepfake Detection":
+    # --- Audio Deepfake Detection UI ---
+    import os
+    from glob import glob
     st.header("🔊 Audio Deepfake Detection")
-    st.write("Upload an audio file to check if it's Bonafide or Deepfake. Select your preferred model(s) for prediction.")
+    st.write("Select one or more audio files and one or more models to predict if each audio is Bonafide or Deepfake.")
     with st.expander("How does it work?", expanded=False):
         st.info("""
-        - Upload a .wav or .mp3 file (max 10MB).
+        - Select one or more audio files from the dataset folder.
+        - You can search for audio files by name.
         - Choose one or more models: SVM, Logistic Regression, Perceptron, or DNN.
-        - The system extracts MFCC features and predicts authenticity.
+        - The system extracts MFCC features and predicts authenticity for each file with each model.
         """)
     st.markdown("---")
-    audio_file = st.file_uploader("Choose an audio file", type=["wav", "mp3"], help="Upload a .wav or .mp3 file.")
+    # Recursively find all .wav files in deepfake_detection_dataset_urdu
+    audio_root = "deepfake_detection_dataset_urdu"
+    all_audio_files = [os.path.relpath(f, audio_root) for f in glob(os.path.join(audio_root, "**", "*.wav"), recursive=True)]
+    # Add urdu_audio_100 files as well
+    urdu_audio_dir = "urdu_audio_100"
+    urdu_audio_files = [os.path.join(urdu_audio_dir, f) for f in os.listdir(urdu_audio_dir) if f.endswith('.wav')]
+    all_audio_files += urdu_audio_files
+    all_audio_files = sorted(all_audio_files)
+    # Search box for filtering audio files
+    search_query = st.text_input("Search audio files by name (case-insensitive):", "")
+    filtered_audio_files = [f for f in all_audio_files if search_query.lower() in os.path.basename(f).lower()]
+    selected_files = st.multiselect("Select Audio File(s)", filtered_audio_files, default=filtered_audio_files[:1], key="audio_file_select")
     model_choices_audio = st.multiselect("Select Model(s)", ["SVM", "Logistic Regression", "Perceptron", "DNN"], default=["SVM"], key="audio_model_select")
-    if st.button("Predict Audio", help="Run prediction on uploaded audio file."):
-        if audio_file is not None and model_choices_audio:
-            audio_bytes = audio_file.read()
-            if len(model_choices_audio) == 1:
+    if st.button("Predict Audio", help="Run prediction on selected audio files."):
+        if selected_files and model_choices_audio:
+            if len(selected_files) == 1 and len(model_choices_audio) == 1:
+                # Single file, single model
+                file = selected_files[0]
+                if file.startswith(urdu_audio_dir):
+                    file_path = file
+                else:
+                    file_path = os.path.join(audio_root, file)
+                with open(file_path, "rb") as f:
+                    audio_bytes = f.read()
                 pred_label, confidence = predict_audio_deepfake(audio_bytes, model_choices_audio[0])
-                st.success(f"Prediction: {pred_label} (Confidence: {confidence:.2f})")
+                st.success(f"Prediction: {pred_label} (Confidence: {confidence:.2f}) for {os.path.basename(selected_files[0])}")
             else:
+                # Multiple files and/or models: show table (rows=audio, cols=models)
+                import numpy as np
                 results = []
-                for model in model_choices_audio:
-                    pred_label, confidence = predict_audio_deepfake(audio_bytes, model)
-                    results.append({
-                        "Model": model,
-                        "Prediction": pred_label,
-                        "Confidence": confidence
-                    })
+                for file in selected_files:
+                    row = {"Audio File": os.path.basename(file)}
+                    if file.startswith(urdu_audio_dir):
+                        file_path = file
+                    else:
+                        file_path = os.path.join(audio_root, file)
+                    try:
+                        with open(file_path, "rb") as f:
+                            audio_bytes = f.read()
+                        for model in model_choices_audio:
+                            pred_label, confidence = predict_audio_deepfake(audio_bytes, model)
+                            row[f"{model} Prediction"] = pred_label
+                            row[f"{model} Confidence"] = np.round(confidence, 2)
+                    except FileNotFoundError:
+                        for model in model_choices_audio:
+                            row[f"{model} Prediction"] = "File Not Found"
+                            row[f"{model} Confidence"] = None
+                    results.append(row)
                 st.dataframe(pd.DataFrame(results))
         else:
-            st.warning("Please upload an audio file and select at least one model.")
+            st.warning("Please select at least one audio file and one model.")
     st.caption("Audio Deepfake Detection | Powered by ML & Signal Processing")
 
 elif page == "Software Defect Prediction":
